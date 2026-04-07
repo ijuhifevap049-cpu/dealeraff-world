@@ -168,63 +168,75 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [adminTab, setAdminTab] = useState<'links' | 'users'>('links');
   const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [customLinks, setCustomLinks] = useState<Record<string, string>>({});
   const itemsPerPage = 50;
 
-  // Stable loadUsers function
-  const loadUsers = useMemo(() => () => {
-    let storedUsers: Record<string, any> = {};
-    try {
-      const stored = localStorage.getItem('dealeraff_users');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object') {
-          storedUsers = parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to parse users from localStorage', e);
-    }
+  // Load data from localStorage
+  useEffect(() => {
+    const loadData = () => {
+      // Load Users
+      const storedUsers = JSON.parse(localStorage.getItem('dealeraff_users') || '{}');
+      const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => {
+        const safeData = (data && typeof data === 'object') ? data : {};
+        return {
+          id: (index + 2).toString(),
+          email,
+          role: safeData.role || 'User',
+          status: safeData.status || 'Active',
+          joined: safeData.joined || new Date().toISOString().split('T')[0],
+          balance: safeData.balance || '$0.00',
+          lastLogin: safeData.lastLogin || null,
+          fullName: safeData.fullName || ''
+        };
+      });
 
-    const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => {
-      const safeData = (data && typeof data === 'object') ? data : {};
-      return {
-        id: (index + 2).toString(),
-        email,
-        role: safeData.role || 'User',
-        status: safeData.status || 'Active',
-        joined: safeData.joined || new Date().toISOString().split('T')[0],
-        balance: safeData.balance || '$0.00',
-        lastLogin: safeData.lastLogin || null
+      const rawAdminData = storedUsers['890305@wty.com'];
+      const adminData = (rawAdminData && typeof rawAdminData === 'object') ? rawAdminData : {};
+      const adminUser = {
+        id: '1',
+        email: '890305@wty.com',
+        role: 'Admin',
+        status: 'Active',
+        joined: '2024-01-15',
+        balance: '$12,450.00',
+        lastLogin: adminData.lastLogin || null,
+        fullName: adminData.fullName || 'Admin'
       };
-    });
 
-    // Always include the default admin
-    const rawAdminData = storedUsers['890305@wty.com'];
-    const adminData = (rawAdminData && typeof rawAdminData === 'object') ? rawAdminData : {};
-    const adminUser = {
-      id: '1',
-      email: '890305@wty.com',
-      role: 'Admin',
-      status: 'Active',
-      joined: '2024-01-15',
-      balance: '$12,450.00',
-      lastLogin: adminData.lastLogin || null
+      const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
+      setRegisteredUsers([adminUser, ...filteredUsersList]);
+
+      // Load Custom Links
+      const storedLinks = JSON.parse(localStorage.getItem('dealeraff_custom_links') || '{}');
+      setCustomLinks(storedLinks);
     };
 
-    // Filter out the admin from usersList if it's already there to avoid duplicates
-    const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
+    loadData();
+    window.addEventListener('storage', loadData);
+    return () => window.removeEventListener('storage', loadData);
+  }, [activeView, adminTab]);
 
-    setRegisteredUsers([adminUser, ...filteredUsersList]);
-  }, []);
+  const handleCreateOrUpdateUser = (userData: any) => {
+    const storedUsers = JSON.parse(localStorage.getItem('dealeraff_users') || '{}');
+    storedUsers[userData.email] = {
+      ...storedUsers[userData.email],
+      ...userData,
+      password: userData.password || storedUsers[userData.email]?.password || '123456'
+    };
+    localStorage.setItem('dealeraff_users', JSON.stringify(storedUsers));
+    setIsUserModalOpen(false);
+    setEditingUser(null);
+    // Trigger local update
+    const event = new Event('storage');
+    window.dispatchEvent(event);
+  };
 
-  // Load real users from localStorage
-  useEffect(() => {
-    loadUsers();
-    
-    // Listen for storage changes (in case of registration in another tab)
-    window.addEventListener('storage', loadUsers);
-    return () => window.removeEventListener('storage', loadUsers);
-  }, [activeView, adminTab, loadUsers]);
+  const handleSaveLinks = () => {
+    localStorage.setItem('dealeraff_custom_links', JSON.stringify(customLinks));
+    alert('Changes saved successfully!');
+  };
 
   const handleLogin = (email: string) => {
     setUserEmail(email);
@@ -402,15 +414,57 @@ export default function App() {
                     </div>
                     <div className="flex items-center gap-3">
                       <button 
-                        onClick={loadUsers}
+                        onClick={() => {
+                          const storedUsers = JSON.parse(localStorage.getItem('dealeraff_users') || '{}');
+                          const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => {
+                            const safeData = (data && typeof data === 'object') ? data : {};
+                            return {
+                              id: (index + 2).toString(),
+                              email,
+                              role: safeData.role || 'User',
+                              status: safeData.status || 'Active',
+                              joined: safeData.joined || new Date().toISOString().split('T')[0],
+                              balance: safeData.balance || '$0.00',
+                              lastLogin: safeData.lastLogin || null,
+                              fullName: safeData.fullName || ''
+                            };
+                          });
+                          const rawAdminData = storedUsers['890305@wty.com'];
+                          const adminData = (rawAdminData && typeof rawAdminData === 'object') ? rawAdminData : {};
+                          const adminUser = {
+                            id: '1',
+                            email: '890305@wty.com',
+                            role: 'Admin',
+                            status: 'Active',
+                            joined: '2024-01-15',
+                            balance: '$12,450.00',
+                            lastLogin: adminData.lastLogin || null,
+                            fullName: adminData.fullName || 'Admin'
+                          };
+                          const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
+                          setRegisteredUsers([adminUser, ...filteredUsersList]);
+                        }}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Refresh Data"
                       >
                         <RefreshCw className="w-4 h-4" />
                       </button>
-                      {adminTab === 'users' && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-colors">
+                      {adminTab === 'users' ? (
+                        <button 
+                          onClick={() => {
+                            setEditingUser(null);
+                            setIsUserModalOpen(true);
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-colors"
+                        >
                           <UserCog className="w-4 h-4" /> Create User
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={handleSaveLinks}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg font-bold text-xs hover:bg-emerald-600 transition-colors"
+                        >
+                          <Save className="w-4 h-4" /> Save Changes
                         </button>
                       )}
                       <div className="relative">
@@ -450,6 +504,8 @@ export default function App() {
                               <td className="px-6 py-5">
                                 <input 
                                   type="text" 
+                                  value={customLinks[offer.id] || ''}
+                                  onChange={(e) => setCustomLinks(prev => ({ ...prev, [offer.id]: e.target.value }))}
                                   placeholder="Enter custom link for this ID..." 
                                   className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                                 />
@@ -466,7 +522,7 @@ export default function App() {
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Role</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Balance</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Login</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
                           </tr>
                         </thead>
@@ -480,7 +536,7 @@ export default function App() {
                                   </div>
                                   <div className="flex flex-col">
                                     <span className="text-sm font-bold text-gray-700">{user.email}</span>
-                                    <span className="text-[10px] text-gray-400 font-medium">ID: {user.id}</span>
+                                    <span className="text-[10px] text-gray-400 font-medium">{user.fullName} | ID: {user.id}</span>
                                   </div>
                                 </div>
                               </td>
@@ -522,10 +578,25 @@ export default function App() {
                               </td>
                               <td className="px-6 py-5 text-right">
                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit User">
+                                  <button 
+                                    onClick={() => {
+                                      setEditingUser(user);
+                                      setIsUserModalOpen(true);
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" 
+                                    title="Edit User"
+                                  >
                                     <Edit2 className="w-4 h-4" />
                                   </button>
-                                  <button className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Suspend User">
+                                  <button 
+                                    onClick={() => {
+                                      if (confirm(`Are you sure you want to suspend ${user.email}?`)) {
+                                        handleCreateOrUpdateUser({ ...user, status: 'Suspended' });
+                                      }
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" 
+                                    title="Suspend User"
+                                  >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                   <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors">
@@ -862,6 +933,134 @@ export default function App() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* User Modal */}
+      <AnimatePresence>
+        {isUserModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsUserModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <h3 className="text-lg font-bold text-gray-800">
+                  {editingUser ? 'Edit User' : 'Create New User'}
+                </h3>
+                <button 
+                  onClick={() => setIsUserModalOpen(false)}
+                  className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  handleCreateOrUpdateUser({
+                    email: formData.get('email'),
+                    fullName: formData.get('fullName'),
+                    role: formData.get('role'),
+                    status: formData.get('status'),
+                    balance: formData.get('balance'),
+                    password: formData.get('password') || undefined
+                  });
+                }}
+                className="p-6 space-y-4"
+              >
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Full Name</label>
+                  <input 
+                    name="fullName"
+                    required
+                    defaultValue={editingUser?.fullName}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    placeholder="Enter full name..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Email Address</label>
+                  <input 
+                    name="email"
+                    type="email"
+                    required
+                    readOnly={!!editingUser}
+                    defaultValue={editingUser?.email}
+                    className={cn(
+                      "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all",
+                      editingUser && "opacity-60 cursor-not-allowed"
+                    )}
+                    placeholder="user@example.com"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Role</label>
+                    <select 
+                      name="role"
+                      defaultValue={editingUser?.role || 'User'}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    >
+                      <option value="User">User</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Status</label>
+                    <select 
+                      name="status"
+                      defaultValue={editingUser?.status || 'Active'}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Suspended">Suspended</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Balance</label>
+                  <input 
+                    name="balance"
+                    defaultValue={editingUser?.balance || '$0.00'}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    placeholder="$0.00"
+                  />
+                </div>
+                {!editingUser && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Password</label>
+                    <input 
+                      name="password"
+                      type="password"
+                      required
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                )}
+                <div className="pt-4">
+                  <button 
+                    type="submit"
+                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
+                  >
+                    {editingUser ? 'Update User' : 'Create User'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
