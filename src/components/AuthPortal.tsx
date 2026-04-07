@@ -64,6 +64,11 @@ export default function AuthPortal({ onLogin }: AuthPortalProps) {
         // Login logic
         // Check for default admin first
         if (email === defaultAdminEmail && password === defaultAdminPass) {
+          // Update admin last login
+          const adminData = users[email] || { fullName: 'Admin', role: 'Admin' };
+          users[email] = { ...adminData, lastLogin: new Date().toISOString() };
+          localStorage.setItem('dealeraff_users', JSON.stringify(users));
+          
           setIsLoading(false);
           onLogin(email);
           return;
@@ -81,6 +86,10 @@ export default function AuthPortal({ onLogin }: AuthPortalProps) {
           setIsLoading(false);
           return;
         }
+
+        // Update last login
+        users[email] = { ...user, lastLogin: new Date().toISOString() };
+        localStorage.setItem('dealeraff_users', JSON.stringify(users));
 
         // Success
         setIsLoading(false);

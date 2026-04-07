@@ -177,23 +177,29 @@ export default function App() {
       const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => ({
         id: (index + 2).toString(),
         email,
-        role: 'User',
-        status: 'Active',
-        joined: new Date().toISOString().split('T')[0],
-        balance: '$0.00'
+        role: data.role || 'User',
+        status: data.status || 'Active',
+        joined: data.joined || new Date().toISOString().split('T')[0],
+        balance: data.balance || '$0.00',
+        lastLogin: data.lastLogin || null
       }));
 
       // Always include the default admin
+      const adminData = storedUsers['890305@wty.com'] || {};
       const adminUser = {
         id: '1',
         email: '890305@wty.com',
         role: 'Admin',
         status: 'Active',
         joined: '2024-01-15',
-        balance: '$12,450.00'
+        balance: '$12,450.00',
+        lastLogin: adminData.lastLogin || null
       };
 
-      setRegisteredUsers([adminUser, ...usersList]);
+      // Filter out the admin from usersList if it's already there to avoid duplicates
+      const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
+
+      setRegisteredUsers([adminUser, ...filteredUsersList]);
     };
 
     loadUsers();
@@ -201,7 +207,7 @@ export default function App() {
     // Listen for storage changes (in case of registration in another tab)
     window.addEventListener('storage', loadUsers);
     return () => window.removeEventListener('storage', loadUsers);
-  }, []);
+  }, [activeView, adminTab]);
 
   const handleLogin = (email: string) => {
     setUserEmail(email);
@@ -378,6 +384,39 @@ export default function App() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => {
+                          const loadUsers = () => {
+                            const storedUsers = JSON.parse(localStorage.getItem('dealeraff_users') || '{}');
+                            const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => ({
+                              id: (index + 2).toString(),
+                              email,
+                              role: data.role || 'User',
+                              status: data.status || 'Active',
+                              joined: data.joined || new Date().toISOString().split('T')[0],
+                              balance: data.balance || '$0.00',
+                              lastLogin: data.lastLogin || null
+                            }));
+                            const adminData = storedUsers['890305@wty.com'] || {};
+                            const adminUser = {
+                              id: '1',
+                              email: '890305@wty.com',
+                              role: 'Admin',
+                              status: 'Active',
+                              joined: '2024-01-15',
+                              balance: '$12,450.00',
+                              lastLogin: adminData.lastLogin || null
+                            };
+                            const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
+                            setRegisteredUsers([adminUser, ...filteredUsersList]);
+                          };
+                          loadUsers();
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Refresh Data"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
                       {adminTab === 'users' && (
                         <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-colors">
                           <UserCog className="w-4 h-4" /> Create User
@@ -436,7 +475,7 @@ export default function App() {
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Role</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Balance</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Login</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
                           </tr>
                         </thead>
@@ -484,8 +523,10 @@ export default function App() {
                               </td>
                               <td className="px-6 py-5">
                                 <div className="flex items-center gap-1.5 text-gray-500">
-                                  <Calendar className="w-3.5 h-3.5" />
-                                  <span className="text-xs font-medium">{user.joined}</span>
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span className="text-xs font-medium">
+                                    {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-6 py-5 text-right">
