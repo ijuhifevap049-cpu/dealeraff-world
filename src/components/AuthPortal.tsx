@@ -77,7 +77,8 @@ export default function AuthPortal({ onLogin }: AuthPortalProps) {
         // Check for default admin first
         if (email === defaultAdminEmail && password === defaultAdminPass) {
           // Update admin last login
-          const adminData = users[email] || { fullName: 'Admin', role: 'Admin' };
+          const rawAdminData = users[email];
+          const adminData = (rawAdminData && typeof rawAdminData === 'object') ? rawAdminData : { fullName: 'Admin', role: 'Admin' };
           users[email] = { ...adminData, lastLogin: new Date().toISOString() };
           localStorage.setItem('dealeraff_users', JSON.stringify(users));
           
@@ -87,8 +88,8 @@ export default function AuthPortal({ onLogin }: AuthPortalProps) {
         }
 
         const user = users[email];
-        if (!user) {
-          setError('账号不存在，请先注册。');
+        if (!user || typeof user !== 'object') {
+          setError('账号数据异常，请联系管理员。');
           setIsLoading(false);
           return;
         }

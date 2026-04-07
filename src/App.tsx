@@ -185,18 +185,22 @@ export default function App() {
       console.error('Failed to parse users from localStorage', e);
     }
 
-    const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => ({
-      id: (index + 2).toString(),
-      email,
-      role: data.role || 'User',
-      status: data.status || 'Active',
-      joined: data.joined || new Date().toISOString().split('T')[0],
-      balance: data.balance || '$0.00',
-      lastLogin: data.lastLogin || null
-    }));
+    const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => {
+      const safeData = (data && typeof data === 'object') ? data : {};
+      return {
+        id: (index + 2).toString(),
+        email,
+        role: safeData.role || 'User',
+        status: safeData.status || 'Active',
+        joined: safeData.joined || new Date().toISOString().split('T')[0],
+        balance: safeData.balance || '$0.00',
+        lastLogin: safeData.lastLogin || null
+      };
+    });
 
     // Always include the default admin
-    const adminData = storedUsers['890305@wty.com'] || {};
+    const rawAdminData = storedUsers['890305@wty.com'];
+    const adminData = (rawAdminData && typeof rawAdminData === 'object') ? rawAdminData : {};
     const adminUser = {
       id: '1',
       email: '890305@wty.com',
