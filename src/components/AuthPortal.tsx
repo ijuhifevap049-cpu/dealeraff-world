@@ -32,19 +32,24 @@ export default function AuthPortal({ onLogin }: AuthPortalProps) {
 
     // Simulate network delay
     setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem('dealeraff_users') || '{}');
+      let users: Record<string, any> = {};
+      try {
+        const stored = localStorage.getItem('dealeraff_users');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') {
+            users = parsed;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse users from localStorage', e);
+      }
       
       // Default backend account
       const defaultAdminEmail = '890305@wty.com';
       const defaultAdminPass = '890305@wty.com';
 
       if (mode === 'register') {
-        if (fullName !== 'wtylyp') {
-          setError('Registration restricted. Please wait for further notification.');
-          setIsLoading(false);
-          return;
-        }
-
         if (users[email] || email === defaultAdminEmail) {
           setError('该邮箱已被注册。');
           setIsLoading(false);
@@ -52,14 +57,21 @@ export default function AuthPortal({ onLogin }: AuthPortalProps) {
         }
         
         // Save user
-        users[email] = { password, fullName };
+        users[email] = { 
+          password, 
+          fullName,
+          joined: new Date().toISOString().split('T')[0],
+          role: 'User',
+          status: 'Active',
+          balance: '$0.00'
+        };
         localStorage.setItem('dealeraff_users', JSON.stringify(users));
         
         // Registration successful, switch to login mode
         setIsLoading(false);
         setMode('login');
         setPassword(''); // Clear password for security
-        setSuccess('Registration successful! Please sign in with your credentials.');
+        setSuccess('注册成功！请使用您的凭据登录。');
       } else {
         // Login logic
         // Check for default admin first

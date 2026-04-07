@@ -170,44 +170,57 @@ export default function App() {
   const [registeredUsers, setRegisteredUsers] = useState<any[]>([]);
   const itemsPerPage = 50;
 
-  // Load real users from localStorage
-  useEffect(() => {
-    const loadUsers = () => {
-      const storedUsers = JSON.parse(localStorage.getItem('dealeraff_users') || '{}');
-      const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => ({
-        id: (index + 2).toString(),
-        email,
-        role: data.role || 'User',
-        status: data.status || 'Active',
-        joined: data.joined || new Date().toISOString().split('T')[0],
-        balance: data.balance || '$0.00',
-        lastLogin: data.lastLogin || null
-      }));
+  // Stable loadUsers function
+  const loadUsers = useMemo(() => () => {
+    let storedUsers: Record<string, any> = {};
+    try {
+      const stored = localStorage.getItem('dealeraff_users');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          storedUsers = parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse users from localStorage', e);
+    }
 
-      // Always include the default admin
-      const adminData = storedUsers['890305@wty.com'] || {};
-      const adminUser = {
-        id: '1',
-        email: '890305@wty.com',
-        role: 'Admin',
-        status: 'Active',
-        joined: '2024-01-15',
-        balance: '$12,450.00',
-        lastLogin: adminData.lastLogin || null
-      };
+    const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => ({
+      id: (index + 2).toString(),
+      email,
+      role: data.role || 'User',
+      status: data.status || 'Active',
+      joined: data.joined || new Date().toISOString().split('T')[0],
+      balance: data.balance || '$0.00',
+      lastLogin: data.lastLogin || null
+    }));
 
-      // Filter out the admin from usersList if it's already there to avoid duplicates
-      const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
-
-      setRegisteredUsers([adminUser, ...filteredUsersList]);
+    // Always include the default admin
+    const adminData = storedUsers['890305@wty.com'] || {};
+    const adminUser = {
+      id: '1',
+      email: '890305@wty.com',
+      role: 'Admin',
+      status: 'Active',
+      joined: '2024-01-15',
+      balance: '$12,450.00',
+      lastLogin: adminData.lastLogin || null
     };
 
+    // Filter out the admin from usersList if it's already there to avoid duplicates
+    const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
+
+    setRegisteredUsers([adminUser, ...filteredUsersList]);
+  }, []);
+
+  // Load real users from localStorage
+  useEffect(() => {
     loadUsers();
     
     // Listen for storage changes (in case of registration in another tab)
     window.addEventListener('storage', loadUsers);
     return () => window.removeEventListener('storage', loadUsers);
-  }, [activeView, adminTab]);
+  }, [activeView, adminTab, loadUsers]);
 
   const handleLogin = (email: string) => {
     setUserEmail(email);
@@ -385,33 +398,7 @@ export default function App() {
                     </div>
                     <div className="flex items-center gap-3">
                       <button 
-                        onClick={() => {
-                          const loadUsers = () => {
-                            const storedUsers = JSON.parse(localStorage.getItem('dealeraff_users') || '{}');
-                            const usersList = Object.entries(storedUsers).map(([email, data]: [string, any], index) => ({
-                              id: (index + 2).toString(),
-                              email,
-                              role: data.role || 'User',
-                              status: data.status || 'Active',
-                              joined: data.joined || new Date().toISOString().split('T')[0],
-                              balance: data.balance || '$0.00',
-                              lastLogin: data.lastLogin || null
-                            }));
-                            const adminData = storedUsers['890305@wty.com'] || {};
-                            const adminUser = {
-                              id: '1',
-                              email: '890305@wty.com',
-                              role: 'Admin',
-                              status: 'Active',
-                              joined: '2024-01-15',
-                              balance: '$12,450.00',
-                              lastLogin: adminData.lastLogin || null
-                            };
-                            const filteredUsersList = usersList.filter(u => u.email !== '890305@wty.com');
-                            setRegisteredUsers([adminUser, ...filteredUsersList]);
-                          };
-                          loadUsers();
-                        }}
+                        onClick={loadUsers}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Refresh Data"
                       >
